@@ -1,0 +1,7 @@
+__pycache__/
+.idea/
+cookies/
+.history
+
+*.log
+*.png
