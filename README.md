@@ -1,13 +1,11 @@
-# JD-Assistant
+# JD-Assistant 京东抢购助手
 
 [![version](https://img.shields.io/badge/python-3.4+-blue.svg)](https://www.python.org/download/releases/3.4.0/) 
 [![status](https://img.shields.io/badge/status-stable-green.svg)](https://github.com/whyour/jd-assistant)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![star, issue](https://img.shields.io/badge/star%2C%20issue-welcome-brightgreen.svg)](https://github.com/whyour/jd-assistant)
 
-京东抢购助手
-
-本仓库`fork`自[tychxn](https://github.com/tychxn/jd-assistant)
+本仓库`fork`自 [tychxn](https://github.com/tychxn/jd-assistant)
 
 ## 新增功能
 - 登陆京东商城（[www.jd.com](http://www.jd.com/)）
@@ -43,4 +41,5 @@ python3 -m pip install -r requirements.txt
   
 ## 待完成的功能
 
+- [ ] 通知功能
 - [ ] Keep session alive

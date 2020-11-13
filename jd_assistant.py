@@ -7,6 +7,7 @@ import re
 import random
 import time
 import zxing
+import platform
 
 import requests
 from bs4 import BeautifulSoup
@@ -42,12 +43,6 @@ class Assistant(object):
         use_random_ua = global_config.getboolean('config', 'random_useragent')
         self.user_agent = DEFAULT_USER_AGENT if not use_random_ua else get_random_useragent()
         self.headers = {'User-Agent': self.user_agent}
-        self.eid = global_config.get('config', 'eid')
-        self.fp = global_config.get('config', 'fp')
-        self.track_id = global_config.get('config', 'track_id')
-        self.risk_control = global_config.get('config', 'risk_control')
-        if not self.eid or not self.fp or not self.track_id or not self.risk_control:
-            raise AsstException('请在 config.ini 中配置 eid, fp, track_id, risk_control 参数，具体请参考 wiki-常见问题')
 
         self.timeout = float(global_config.get('config', 'timeout') or DEFAULT_TIMEOUT)
         self.send_message = global_config.getboolean('messenger', 'enable')
@@ -818,7 +813,7 @@ class Assistant(object):
                 return
 
             soup = BeautifulSoup(resp.text, "html.parser")
-            self.risk_control = get_tag_value(soup.select('input#riskControl'), 'value')
+            risk_control = get_tag_value(soup.select('input#riskControl'), 'value')
 
             order_detail = {
                 'address': soup.find('span', id='sendAddr').text[5:],  # remove '寄送至： ' from the begin
@@ -837,7 +832,7 @@ class Assistant(object):
             #     })
 
             logger.info("下单信息：%s", order_detail)
-            return order_detail
+            return risk_control
         except Exception as e:
             logger.error('订单结算页面数据解析异常（可以忽略），报错信息：%s', e)
 
@@ -895,7 +890,7 @@ class Assistant(object):
         self.sess.post(url=url, data=data, headers=headers)
 
     @check_login
-    def submit_order(self):
+    def submit_order(self, risk_control):
         """提交订单
 
         重要：
@@ -914,12 +909,12 @@ class Assistant(object):
             'submitOrderParam.trackID': 'TestTrackId',
             'submitOrderParam.ignorePriceChange': '0',
             'submitOrderParam.btSupport': '0',
-            'riskControl': self.risk_control,
+            'riskControl': risk_control,
             'submitOrderParam.isBestCoupon': 1,
             'submitOrderParam.jxj': 1,
-            'submitOrderParam.trackId': self.track_id,  # Todo: need to get trackId
-            'submitOrderParam.eid': self.eid,
-            'submitOrderParam.fp': self.fp,
+            'submitOrderParam.trackId': 'TestTrackId',
+            # 'submitOrderParam.eid': self.eid,
+            # 'submitOrderParam.fp': self.fp,
             'submitOrderParam.needCheck': 1,
         }
 
@@ -964,8 +959,8 @@ class Assistant(object):
                 elif result_code == 60123:
                     message = message + '(需要在config.ini文件中配置支付密码)'
                 logger.info('订单提交失败, 错误码：%s, 返回信息：%s', result_code, message)
-                logger.info(resp_json)
-                return False
+                # logger.info(resp_json)
+                return result_code
         except Exception as e:
             logger.error(e)
             return False
@@ -979,14 +974,20 @@ class Assistant(object):
         """
         for i in range(1, retry + 1):
             logger.info('第[%s/%s]次尝试提交订单', i, retry)
-            self.get_checkout_page_detail()
-            if self.submit_order():
-                logger.info('第%s次提交订单成功', i)
-                return True
-            else:
+            risk_control = self.get_checkout_page_detail()
+            if risk_control == '刷新太频繁了':
                 if i < retry:
                     logger.info('第%s次提交失败，%ss后重试', i, interval)
                     time.sleep(interval)
+            else:
+                result_code = self.submit_order(risk_control)
+                if result_code == 60077 or result_code == 60123:
+                    break
+                elif result_code:
+                    logger.info('第%s次提交订单成功', i)
+                    break
+            
+                
         else:
             logger.info('重试提交%s次结束', retry)
             return False
@@ -1007,10 +1008,18 @@ class Assistant(object):
 
         for count in range(1, retry + 1):
             logger.info('第[%s/%s]次尝试提交订单', count, retry)
-            if self.submit_order():
-                break
-            logger.info('休息%ss', interval)
-            time.sleep(interval)
+            risk_control = self.get_checkout_page_detail()
+            if risk_control == '刷新太频繁了':
+                if count < retry:
+                    logger.info('第%s次提交失败，%ss后重试', count, interval)
+                    time.sleep(interval)
+            else:
+                result_code = self.submit_order(risk_control)
+                if result_code == 60077 or result_code == 60123:
+                    break
+                elif result_code:
+                    logger.info('第%s次提交订单成功', i)
+                    break
         else:
             logger.info('执行结束，提交订单失败！')
 
@@ -1232,8 +1241,8 @@ class Assistant(object):
             'areaCode': '',
             'overseas': 0,
             'phone': '',
-            'eid': self.eid,
-            'fp': self.fp,
+            # 'eid': self.eid,
+            # 'fp': self.fp,
             'token': token,
             'pru': ''
         }
@@ -1366,11 +1375,18 @@ class Assistant(object):
         self.add_item_to_cart(sku_ids={sku_id: num})
 
         for count in range(1, retry + 1):
-            logger.info('第[%s/%s]次尝试提交订单', count, retry)
-            if self.submit_order():
-                break
-            logger.info('休息%ss', interval)
-            time.sleep(interval)
+            risk_control = self.get_checkout_page_detail()
+            if risk_control == '刷新太频繁了':
+                if count < retry:
+                    logger.info('第%s次提交失败，%ss后重试', count, interval)
+                    time.sleep(interval)
+            else:
+                result_code = self.submit_order(risk_control)
+                if result_code == 60077 or result_code == 60123:
+                    break
+                elif result_code:
+                    logger.info('第%s次提交订单成功', i)
+                    break
         else:
             logger.info('执行结束，提交订单失败！')
 
