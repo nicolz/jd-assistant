@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 from config import global_config
 from exception import AsstException
 from log import logger
-from messenger import Messenger
+from messenger import send
 from timer import Timer
 from util import (
     DEFAULT_TIMEOUT,
@@ -45,8 +45,7 @@ class Assistant(object):
         self.headers = {'User-Agent': self.user_agent}
 
         self.timeout = float(global_config.get('config', 'timeout') or DEFAULT_TIMEOUT)
-        self.send_message = global_config.getboolean('messenger', 'enable')
-        self.messenger = Messenger(global_config.get('messenger', 'sckey')) if self.send_message else None
+        self.send = send
 
         self.item_cat = dict()
         self.item_vender_ids = dict()  # 记录商家id
@@ -946,8 +945,7 @@ class Assistant(object):
             if resp_json.get('success'):
                 order_id = resp_json.get('orderId')
                 logger.info('订单提交成功! 订单号：%s', order_id)
-                if self.send_message:
-                    self.messenger.send(text='jd-assistant 订单提交成功', desp='订单号：%s' % order_id)
+                self.send(title='jd-assistant 订单提交成功', content='订单号：%s' % order_id)
                 return True
             else:
                 message, result_code = resp_json.get('message'), resp_json.get('resultCode')

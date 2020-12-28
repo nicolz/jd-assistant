@@ -41,5 +41,5 @@ python3 -m pip install -r requirements.txt
   
 ## 待完成的功能
 
-- [ ] 通知功能
+- [x] 通知功能
 - [ ] Keep session alive
