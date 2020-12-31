@@ -22,7 +22,6 @@ from util import (
     DEFAULT_USER_AGENT,
     check_login,
     deprecated,
-    encrypt_pwd,
     encrypt_payment_pwd,
     get_tag_value,
     get_random_useragent,
@@ -167,58 +166,6 @@ class Assistant(object):
         }
 
     @deprecated
-    def login_by_username(self):
-        if self.is_login:
-            logger.info('登录成功')
-            return True
-
-        username = input('账号:')
-        password = input('密码:')
-        if (not username) or (not password):
-            logger.error('用户名或密码不能为空')
-            return False
-        self.username = username
-
-        data = self._get_login_data()
-        uuid = data['uuid']
-
-        auth_code = ''
-        if self._need_auth_code(username):
-            logger.info('本次登录需要验证码')
-            auth_code = self._get_auth_code(uuid)
-        else:
-            logger.info('本次登录不需要验证码')
-
-        login_url = "https://passport.jd.com/uc/loginService"
-        payload = {
-            'uuid': uuid,
-            'version': 2015,
-            'r': random.random(),
-        }
-        data['authcode'] = auth_code
-        data['loginname'] = username
-        data['nloginpwd'] = encrypt_pwd(password)
-        headers = {
-            'User-Agent': self.user_agent,
-            'Origin': 'https://passport.jd.com',
-        }
-        resp = self.sess.post(url=login_url, data=data, headers=headers, params=payload)
-
-        if not response_status(resp):
-            logger.error('登录失败')
-            return False
-
-        if not self._get_login_result(resp):
-            return False
-
-        # login success
-        logger.info('登录成功')
-        self.nick_name = self.get_user_info()
-        self._save_cookies()
-        self.is_login = True
-        return True
-
-    @deprecated
     def _get_login_result(self, resp):
         resp_json = parse_json(resp.text)
         error_msg = ''
@@ -316,7 +263,7 @@ class Assistant(object):
             logger.info(resp_json)
             return False
 
-    def login_by_QRcode(self):
+    def login_by_QRCode(self):
         """二维码登陆
         :return:
         """
@@ -1099,7 +1046,7 @@ class Assistant(object):
         except Exception as e:
             logger.error(e)
 
-    @deprecated
+    @check_login
     def _get_seckill_url(self, sku_id):
         """获取商品的抢购链接
 
@@ -1137,7 +1084,7 @@ class Assistant(object):
                 logger.info("抢购链接获取失败，%s不是抢购商品或抢购页面暂未刷新，%s秒后重试", sku_id, retry_interval)
                 time.sleep(retry_interval)
 
-    @deprecated
+    @check_login
     def request_seckill_url(self, sku_id):
         """访问商品的抢购链接（用于设置cookie等）
         :param sku_id: 商品id
@@ -1294,7 +1241,7 @@ class Assistant(object):
             logger.info('抢购失败，返回信息: %s', resp_json)
             return False
 
-    @deprecated
+    @check_login
     def exec_seckill(self, sku_id, retry=4, interval=4, num=1, fast_mode=True):
         """立即抢购
 
@@ -1326,7 +1273,7 @@ class Assistant(object):
             logger.info('执行结束，抢购%s失败！', sku_id)
             return False
 
-    @deprecated
+    @check_login
     def exec_seckill_by_time(self, sku_ids, buy_time, retry=4, interval=4, num=1, fast_mode=True):
         """定时抢购
         :param sku_ids: 商品id，多个商品id用逗号进行分割，如"123,456,789"

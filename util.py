@@ -9,20 +9,9 @@ import warnings
 import sys
 import platform
 from base64 import b64encode
-
 import requests
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_v1_5 as Cipher_pkcs1_v1_5
-
 from log import logger
 import qrcode
-
-RSA_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
-MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDC7kw8r6tq43pwApYvkJ5lalja
-N9BZb21TAIfT/vexbobzH7Q8SUdP5uDPXEBKzOjx2L28y7Xs1d9v3tdPfKI2LR7P
-AzWBmDMn8riHrDDNpUpJnlAGUqJG9ooPn8j7YNpcxCa1iybOlc2kEhmJn5uwoanQ
-q+CA6agNkqly2H4j6wIDAQAB
------END PUBLIC KEY-----"""
 
 DEFAULT_TIMEOUT = 10
 
@@ -89,13 +78,6 @@ except UnicodeEncodeError:
     BLOCK = 'MM'
 else:
     BLOCK = b
-
-
-def encrypt_pwd(password, public_key=RSA_PUBLIC_KEY):
-    rsa_key = RSA.importKey(public_key)
-    encryptor = Cipher_pkcs1_v1_5.new(rsa_key)
-    cipher = b64encode(encryptor.encrypt(password.encode('utf-8')))
-    return cipher.decode('utf-8')
 
 
 def encrypt_payment_pwd(payment_pwd):
@@ -228,7 +210,7 @@ def check_login(func):
     def new_func(self, *args, **kwargs):
         if not self.is_login:
             logger.info("{0} 需登陆后调用，开始扫码登陆".format(func.__name__))
-            self.login_by_QRcode()
+            self.login_by_QRCode()
         return func(self, *args, **kwargs)
 
     return new_func

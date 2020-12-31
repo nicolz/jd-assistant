@@ -8,16 +8,15 @@ if __name__ == '__main__':
     https://github.com/tychxn/jd-assistant/wiki/1.-%E4%BA%AC%E4%B8%9C%E6%8A%A2%E8%B4%AD%E5%8A%A9%E6%89%8B%E7%94%A8%E6%B3%95
     """
 
-    sku_id = '100001324422'  # 商品id
-    sku_ids = '100001324422'  # 商品id
+    sku_id = '100012043978'  # 商品id
     area = '1_72_4211'  # 区域id
     asst = Assistant()  # 初始化
-    asst.login_by_QRcode()  # 扫码登陆
+    asst.login_by_QRCode()  # 扫码登陆
     #asst.submit_order()
     #asst.submit_order_with_retry(retry=3, interval=4)
     #asst.buy_item_in_stock(sku_ids=sku_ids, area=area, wait_all=False, stock_interval=5)  # 根据商品是否有货自动下单
-    asst.submit_order_by_time(buy_time='2020-11-11 00:00:03.500', retry=4, interval=5)  # 定时提交订单
-    #asst.exec_reserve_seckill_by_time(sku_id=sku_id,buy_time='2020-11-11 00:00:03.500',retry=4,interval=4,num=1)
+    #asst.submit_order_by_time(buy_time='2020-11-11 00:00:03.500', retry=4, interval=5)  # 定时提交订单
+    asst.exec_seckill_by_time(sku_ids=sku_id,buy_time='2020-12-31 09:59:59.500',retry=4,interval=4,num=1)
     # 6个参数：
     # sku_ids: 商品id。可以设置多个商品，也可以带数量，如：'1234' 或 '1234,5678' 或 '1234:2' 或 '1234:2,5678:3'
     # area: 地区id
