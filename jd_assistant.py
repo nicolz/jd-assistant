@@ -33,7 +33,8 @@ from util import (
     response_status,
     save_image,
     split_area_id,
-    draw
+    draw,
+    wait_some_time
 )
 
 class Assistant(object):
@@ -61,6 +62,14 @@ class Assistant(object):
             self._load_cookies()
         except Exception:
             pass
+
+    def get_headers(self):
+        return {"User-Agent": self.user_agent,
+                "Accept": "text/html,application/xhtml+xml,application/xml;"
+                          "q=0.9,image/webp,image/apng,*/*;"
+                          "q=0.8,application/signed-exchange;"
+                          "v=b3",
+                "Connection": "keep-alive"}
 
     def _load_cookies(self):
         cookies_file = ''
@@ -91,7 +100,7 @@ class Assistant(object):
             'rid': str(int(time.time() * 1000)),
         }
         try:
-            resp = self.sess.get(url=url, params=payload, allow_redirects=False)
+            resp = self.sess.get(url=url, params=payload, headers=self.get_headers(), allow_redirects=False)
             if resp.status_code == requests.codes.OK:
                 return True
         except Exception as e:
@@ -293,7 +302,7 @@ class Assistant(object):
             raise AsstException('二维码信息校验失败')
 
         logger.info('二维码登录成功')
-        self.is_login = True
+        self.is_login = self._validate_cookies()
         self.nick_name = self.get_user_info()
         self._save_cookies()
 
@@ -347,14 +356,19 @@ class Assistant(object):
             'User-Agent': self.user_agent,
             'Referer': 'https://order.jd.com/center/list.action',
         }
-        try:
-            resp = self.sess.get(url=url, params=payload, headers=headers)
-            resp_json = parse_json(resp.text)
-            # many user info are included in response, now return nick name in it
-            # jQuery2381773({"imgUrl":"//storage.360buyimg.com/i.imageUpload/xxx.jpg","lastLoginTime":"","nickName":"xxx","plusStatus":"0","realName":"xxx","userLevel":x,"userScoreVO":{"accountScore":xx,"activityScore":xx,"consumptionScore":xxxxx,"default":false,"financeScore":xxx,"pin":"xxx","riskScore":x,"totalScore":xxxxx}})
-            return resp_json.get('nickName') or 'jd'
-        except Exception:
-            return 'jd'
+        resp = self.sess.get(url=url, params=payload, headers=headers)
+        
+        try_count = 5
+        while not resp.text.startswith("jQuery"):
+            try_count = try_count - 1
+            if try_count > 0:
+                resp = self.sess.get(url=url, params=payload, headers=headers)
+            else:
+                break
+            wait_some_time()
+        # 响应中包含了许多用户信息，现在在其中返回昵称
+        # jQuery2381773({"imgUrl":"//storage.360buyimg.com/i.imageUpload/xxx.jpg","lastLoginTime":"","nickName":"xxx","plusStatus":"0","realName":"xxx","userLevel":x,"userScoreVO":{"accountScore":xx,"activityScore":xx,"consumptionScore":xxxxx,"default":false,"financeScore":xxx,"pin":"xxx","riskScore":x,"totalScore":xxxxx}})
+        return parse_json(resp.text).get('nickName')
 
     def _get_item_detail_page(self, sku_id):
         """访问商品详情页
@@ -1068,7 +1082,6 @@ class Assistant(object):
             'Host': 'itemko.jd.com',
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
-        retry_interval = 0.5
 
         while True:
             resp = self.sess.get(url=url, headers=headers, params=payload)
@@ -1081,8 +1094,8 @@ class Assistant(object):
                 logger.info("抢购链接获取成功: %s", seckill_url)
                 return seckill_url
             else:
-                logger.info("抢购链接获取失败，%s不是抢购商品或抢购页面暂未刷新，%s秒后重试", sku_id, retry_interval)
-                time.sleep(retry_interval)
+                logger.info("抢购链接获取失败，%s不是抢购商品或抢购页面暂未刷新，稍后重试", sku_id)
+                wait_some_time()
 
     @check_login
     def request_seckill_url(self, sku_id):
@@ -1090,6 +1103,8 @@ class Assistant(object):
         :param sku_id: 商品id
         :return:
         """
+        logger.info('用户:{}'.format(self.get_user_info()))
+        
         if not self.seckill_url.get(sku_id):
             self.seckill_url[sku_id] = self._get_seckill_url(sku_id)
         headers = {
@@ -1099,7 +1114,7 @@ class Assistant(object):
         }
         self.sess.get(url=self.seckill_url.get(sku_id), headers=headers, allow_redirects=False)
 
-    @deprecated
+    @check_login
     def request_seckill_checkout_page(self, sku_id, num=1):
         """访问抢购订单结算页面
         :param sku_id: 商品id
@@ -1119,7 +1134,7 @@ class Assistant(object):
         }
         self.sess.get(url=url, params=payload, headers=headers)
 
-    @deprecated
+    @check_login
     def _get_seckill_init_info(self, sku_id, num=1):
         """获取秒杀初始化信息（包括：地址，发票，token）
         :param sku_id:
@@ -1139,7 +1154,7 @@ class Assistant(object):
         resp = self.sess.post(url=url, data=data, headers=headers)
         return parse_json(resp.text)
 
-    @deprecated
+    @check_login
     def _gen_seckill_order_data(self, sku_id, num=1):
         """生成提交抢购订单所需的请求体参数
         :param sku_id: 商品id
@@ -1193,7 +1208,7 @@ class Assistant(object):
         }
         return data
 
-    @deprecated
+    @check_login
     def submit_seckill_order(self, sku_id, num=1):
         """提交抢购（秒杀）订单
         :param sku_id: 商品id
@@ -1268,7 +1283,7 @@ class Assistant(object):
                 return True
             else:
                 logger.info('休息%ss', interval)
-                time.sleep(interval)
+                wait_some_time()
         else:
             logger.info('执行结束，抢购%s失败！', sku_id)
             return False

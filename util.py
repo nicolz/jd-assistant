@@ -3,6 +3,7 @@
 import functools
 import json
 import os
+import time
 import random
 import re
 import warnings
@@ -221,6 +222,9 @@ def get_random_useragent():
     :return: UserAgent字符串
     """
     return random.choice(USER_AGENTS)
+  
+def wait_some_time():
+    time.sleep(random.randint(100, 300) / 1000)
 
 def qr_terminal_str(str,version=1):
     if platform.system() == "Windows":
